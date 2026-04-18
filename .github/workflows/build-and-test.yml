@@ -1,0 +1,93 @@
+# Every step is a thin shell wrapper. To run the same pipeline on a multipass
+# VM (or any Linux host) install docker+buildx and run:
+#   ./scripts/build.sh --load         # amd64 or arm64 matching the host
+#   ./scripts/test.sh                 # unit tests against the loaded image
+#   REGISTRY=ghcr.io/you ./scripts/build.sh --multi-arch --push
+name: build-and-test
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: fhir-ig-ci
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  test:
+    name: Build (host arch) and unit-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build single-arch image for tests
+        env:
+          IMAGE_TAG: ci-${{ github.sha }}
+          CACHE_FROM: type=gha
+          CACHE_TO:   type=gha,mode=max
+        run: ./scripts/build.sh --load
+
+      - name: Run unit tests
+        env:
+          IMAGE_TAG: ci-${{ github.sha }}
+        run: ./scripts/test.sh
+
+  publish:
+    name: Build multi-arch and push
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags
+        id: tags
+        run: |
+          sha="${GITHUB_SHA::7}"
+          tags=("sha-$sha")
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+              tags+=("${GITHUB_REF_NAME}" "latest")
+          elif [ "${GITHUB_REF_NAME:-}" = "main" ]; then
+              tags+=("main")
+          fi
+          printf 'primary=%s\n' "${tags[0]}" >> "$GITHUB_OUTPUT"
+          printf 'extras=%s\n' "${tags[*]:1}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push multi-arch image
+        env:
+          IMAGE_TAG: ${{ steps.tags.outputs.primary }}
+          CACHE_FROM: type=gha
+          CACHE_TO:   type=gha,mode=max
+        run: |
+          extra_args=()
+          for t in ${{ steps.tags.outputs.extras }}; do
+              extra_args+=(--tag "$REGISTRY/$IMAGE_NAME:$t")
+          done
+          ./scripts/build.sh --multi-arch --push "${extra_args[@]}"

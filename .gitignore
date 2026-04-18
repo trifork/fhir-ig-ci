@@ -1,0 +1,10 @@
+# Build artefacts produced by sushi / publisher when iterating locally.
+fsh-generated/
+output/
+input-cache/
+template/
+.fhir/
+.jekyll-cache/
+_site/
+*.log
+.DS_Store

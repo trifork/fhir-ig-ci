@@ -1,0 +1,15 @@
+id: fhir.ig.ci.sample
+canonical: https://example.org/fhir/ig/ci/sample
+name: FhirIgCiSample
+title: FHIR IG CI Sample
+description: Minimal IG fixture used to smoke-test the fhir-ig-ci container image.
+status: draft
+version: 0.1.0
+fhirVersion: 4.0.1
+copyrightYear: 2026+
+releaseLabel: ci
+publisher:
+  name: fhir-ig-ci
+  url: https://example.org/fhir-ig-ci
+FSHOnly: true
+applyExtensionMetadataToRoot: false
