@@ -64,7 +64,24 @@ sync_output() {
 
 run_publisher() {
     log "Running FHIR IG Publisher"
-    (cd "$WORKSPACE" && java -Xmx4g -jar "$IG_PUBLISHER_JAR" -ig . "$@")
+    # The publisher writes a SQLite DB via DBBuilder into ./output. Some host
+    # bind-mount layers (Docker Desktop osxfs/virtiofs, podman-machine, NFS, 9p)
+    # break SQLite locking and surface as SQLITE_IOERR_READ. Stage the run on
+    # the container's local FS so SQLite I/O stays off the bind mount, then
+    # mirror the result back.
+    local stage
+    stage="$(mktemp -d /tmp/ig-publisher.XXXXXX)"
+    cp -a "$WORKSPACE/." "$stage/"
+    rm -rf "$stage/output"
+    local rc=0
+    (cd "$stage" && java -Xmx4g -jar "$IG_PUBLISHER_JAR" -ig . "$@") || rc=$?
+    if [ -d "$stage/output" ]; then
+        rm -rf "$WORKSPACE/output"
+        mkdir -p "$WORKSPACE/output"
+        cp -a "$stage/output/." "$WORKSPACE/output/"
+    fi
+    rm -rf "$stage"
+    [ "$rc" = "0" ] || return "$rc"
     sync_output
 }
 
