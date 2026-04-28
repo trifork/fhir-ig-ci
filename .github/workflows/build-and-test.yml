@@ -75,7 +75,7 @@ jobs:
           if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
               tags+=("${GITHUB_REF_NAME}" "latest")
           elif [ "${GITHUB_REF_NAME:-}" = "main" ]; then
-              tags+=("main")
+              tags+=("main" "latest")
           fi
           printf 'primary=%s\n' "${tags[0]}" >> "$GITHUB_OUTPUT"
           printf 'extras=%s\n' "${tags[*]:1}" >> "$GITHUB_OUTPUT"
