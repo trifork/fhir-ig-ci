@@ -90,6 +90,50 @@ tc_sushi_compiles_sample() {
     rm -rf "$workdir"
 }
 
+tc_output_mount_writes_through() {
+    local ws out
+    ws="$(mktemp -d)"
+    out="$(mktemp -d)"
+    if ! runc -v "$ws:/workspace" -v "$out:/output" "$IMAGE" \
+            bash -c 'echo "uid=$(id -u) gid=$(id -g)" > /output/probe.txt'; then
+        rm -rf "$ws" "$out"
+        return 1
+    fi
+    if [ ! -s "$out/probe.txt" ] || ! grep -q '^uid=' "$out/probe.txt"; then
+        echo "expected $out/probe.txt with uid=... line"
+        ls -la "$out" || true
+        rm -rf "$ws" "$out"
+        return 1
+    fi
+    rm -rf "$ws" "$out"
+}
+
+tc_sync_output_copies_workspace_output() {
+    local ws out
+    ws="$(mktemp -d)"
+    out="$(mktemp -d)"
+    mkdir -p "$ws/output/sub"
+    printf '<html>fhir-ig-ci built</html>' > "$ws/output/index.html"
+    printf 'body{}'                       > "$ws/output/sub/style.css"
+    if ! runc -v "$ws:/workspace" -v "$out:/output" "$IMAGE" sync-output; then
+        rm -rf "$ws" "$out"
+        return 1
+    fi
+    if [ ! -f "$out/index.html" ] || ! grep -q 'fhir-ig-ci built' "$out/index.html"; then
+        echo "expected $out/index.html with synced content"
+        ls -laR "$out" || true
+        rm -rf "$ws" "$out"
+        return 1
+    fi
+    if [ ! -f "$out/sub/style.css" ]; then
+        echo "expected $out/sub/style.css to be synced"
+        ls -laR "$out" || true
+        rm -rf "$ws" "$out"
+        return 1
+    fi
+    rm -rf "$ws" "$out"
+}
+
 tc_serve_exposes_port() {
     local workdir="" cid="" port=18080 ok=0 rc=0
     workdir="$(mktemp -d)"
@@ -129,6 +173,8 @@ run_case "python3 http.server importable"     tc_python_runs
 run_case "publisher.jar present"              tc_publisher_jar_present
 run_case "graphviz dot -V"                    tc_graphviz_runs
 run_case "sushi compiles sample IG"           tc_sushi_compiles_sample
+run_case "/output bind mount is writable"     tc_output_mount_writes_through
+run_case "sync-output copies to /output"      tc_sync_output_copies_workspace_output
 run_case "serve exposes HTTP on 8080"         tc_serve_exposes_port
 run_case "image arch matches host"            tc_arch_matches_host
 

@@ -48,14 +48,24 @@ run_sushi() {
     fi
 }
 
+sync_output() {
+    if [ ! -d "$WORKSPACE/output" ]; then
+        log "No $WORKSPACE/output to sync"
+        return 0
+    fi
+    if [ "$(readlink -f "$WORKSPACE/output")" = "$(readlink -f "$OUTPUT")" ]; then
+        log "$WORKSPACE/output and $OUTPUT are the same path — nothing to sync"
+        return 0
+    fi
+    log "Syncing $WORKSPACE/output -> $OUTPUT"
+    mkdir -p "$OUTPUT"
+    cp -a "$WORKSPACE/output/." "$OUTPUT/"
+}
+
 run_publisher() {
     log "Running FHIR IG Publisher"
     (cd "$WORKSPACE" && java -Xmx4g -jar "$IG_PUBLISHER_JAR" -ig . "$@")
-    if [ -d "$WORKSPACE/output" ] && [ "$(readlink -f "$WORKSPACE/output")" != "$(readlink -f "$OUTPUT")" ]; then
-        log "Syncing $WORKSPACE/output -> $OUTPUT"
-        mkdir -p "$OUTPUT"
-        cp -a "$WORKSPACE/output/." "$OUTPUT/"
-    fi
+    sync_output
 }
 
 serve_output() {
@@ -112,6 +122,9 @@ case "$cmd" in
     serve)
         serve_output
         ;;
+    sync-output)
+        sync_output
+        ;;
     versions|version)
         print_versions
         ;;
@@ -129,6 +142,7 @@ Commands:
   publish              Run sushi (if applicable) then the FHIR IG Publisher. Default.
   publish-and-serve    Publish, then serve /output over HTTP on \$SERVER_PORT.
   serve                Serve an already-built /output over HTTP on \$SERVER_PORT.
+  sync-output          Copy \$WORKSPACE/output to \$OUTPUT (run by 'publish' automatically).
   sushi [args...]      Invoke fsh-sushi directly.
   jekyll [args...]     Invoke jekyll directly.
   versions             Print versions of every bundled tool.
