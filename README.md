@@ -137,28 +137,66 @@ Everything honours `$ENGINE` (auto-detects `docker`, falls back to `podman`),
 `$REGISTRY`, `$IMAGE_NAME`, `$IMAGE_TAG`, `$PLATFORMS`, `$CACHE_FROM` and
 `$CACHE_TO`.
 
-## Running the CI locally (multipass, any Linux host)
+## Running the CI locally
 
-The GitHub Actions workflow under [.github/workflows/build-and-test.yml](.github/workflows/build-and-test.yml) is a thin wrapper
-around `scripts/build.sh` and `scripts/test.sh`, so you can reproduce it
-step-for-step on a Linux VM:
+`scripts/ci-multipass.sh` builds the image and runs the full test suite
+inside a [multipass](https://multipass.run) VM, installing multipass
+automatically if it is not already present.
+
+```sh
+./scripts/ci-multipass.sh
+```
+
+Supported hosts:
+
+| OS / distro       | multipass installed via         |
+| ----------------- | ------------------------------- |
+| macOS             | `brew install --cask multipass` |
+| Ubuntu            | `snap install multipass`        |
+| Debian            | `snap install multipass`        |
+| Linux Mint        | `snap install multipass`        |
+| Fedora            | `dnf install snapd` → `snap install multipass` |
+| CachyOS / Arch    | AUR (`paru` or `yay`)           |
+
+The script is POSIX-compatible (`#!/bin/sh`) and dispatches to a
+per-distro helper in `scripts/ci/`. The VM is created once and reused on
+subsequent runs for faster iteration.
+
+### VM configuration
+
+Override defaults with environment variables:
+
+| Variable    | Default | Purpose                          |
+| ----------- | :-----: | -------------------------------- |
+| `VM_NAME`   | `ig-ci` | Multipass VM name                |
+| `VM_CPUS`   | `4`     | vCPUs                            |
+| `VM_MEMORY` | `8G`    | RAM                              |
+| `VM_DISK`   | `20G`   | Disk                             |
+
+```sh
+VM_NAME=my-ig-vm VM_CPUS=2 VM_MEMORY=4G ./scripts/ci-multipass.sh
+```
+
+### Manual step-by-step
+
+If you prefer to drive the VM yourself:
 
 ```sh
 multipass launch --name ig-ci --cpus 4 --memory 8G --disk 20G 24.04
-multipass shell ig-ci
-
-# inside the VM
-sudo apt-get update
-sudo apt-get install -y docker.io docker-buildx git
-sudo usermod -aG docker ubuntu && newgrp docker
-
-git clone https://github.com/trifork/fhir-ig-ci.git
-cd fhir-ig-ci
-./scripts/build.sh --load
-./scripts/test.sh
+multipass exec ig-ci -- bash -c '
+  sudo apt-get install -y docker.io docker-buildx git
+  sudo usermod -aG docker ubuntu
+'
+# then from the host repo root:
+COPYFILE_DISABLE=1 tar -czf /tmp/repo.tar.gz --exclude=.git .
+multipass transfer /tmp/repo.tar.gz ig-ci:/tmp/repo.tar.gz
+multipass exec ig-ci -- bash -c '
+  mkdir ~/fhir-ig-ci && tar -xzf /tmp/repo.tar.gz -C ~/fhir-ig-ci
+  cd ~/fhir-ig-ci
+  sg docker -c "./scripts/build.sh --load"
+  sg docker -c "./scripts/test.sh"
+'
 ```
-
-Swap `docker.io` for `podman` if you prefer — the scripts auto-detect.
 
 ## CI pipeline
 
