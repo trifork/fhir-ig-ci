@@ -158,6 +158,10 @@ tc_serve_exposes_port() {
 tc_logs_written_to_mount() {
     local logs
     logs="$(mktemp -d)"
+    # The entrypoint chowns /logs to the container's ig user (uid 1000).
+    # Open permissions beforehand so the host can still read the directory
+    # after the chown, regardless of the CI runner's uid.
+    chmod 777 "$logs"
     runc -v "$logs:/logs" "$IMAGE" versions >/dev/null || { rm -rf "$logs"; return 1; }
     local logfile
     logfile="$(ls "$logs"/fhir-ig-ci-*.log 2>/dev/null | head -n1)"
