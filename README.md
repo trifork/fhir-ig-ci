@@ -37,6 +37,21 @@ docker run --rm \
   ghcr.io/trifork/fhir-ig-ci:latest
 ```
 
+Publish and capture logs to a host directory:
+
+```sh
+docker run --rm \
+  -v "$PWD:/workspace" \
+  -v "$PWD/out:/output" \
+  -v "$PWD/logs:/logs" \
+  ghcr.io/trifork/fhir-ig-ci:latest
+```
+
+All container output is streamed to the terminal **and** written to a
+timestamped file (`logs/fhir-ig-ci-YYYYMMDD-HHMMSS.log`) in the mounted
+`/logs` directory. If `/logs` is not mounted the directory is created
+inside the container (logs are not persisted after the container exits).
+
 Publish **and** serve the rendered site on port 8080:
 
 ```sh
@@ -83,11 +98,13 @@ docker run --rm ghcr.io/trifork/fhir-ig-ci:latest versions
 | ------------ | ---------------------------------------------- |
 | `/workspace` | IG source (the dir containing `sushi-config.yaml` / `ig.ini`) |
 | `/output`    | Destination for rendered site (optional)       |
+| `/logs`      | Timestamped log files written here (optional)  |
 | `8080/tcp`   | HTTP port used by `serve` / `publish-and-serve`|
 
 | Env var       | Default | Purpose                                            |
 | ------------- | :-----: | -------------------------------------------------- |
 | `SERVER_PORT` | `8080`  | Listener port for the built-in HTTP server         |
+| `LOGS`        | `/logs` | Directory where timestamped log files are written  |
 | `PUID`/`PGID` |    —    | Force the container user's uid/gid. If unset, the entrypoint adopts the owner of `/workspace`. |
 
 The entrypoint starts as root, remaps the built-in `ig` user so its uid/gid

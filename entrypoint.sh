@@ -3,6 +3,7 @@ set -euo pipefail
 
 WORKSPACE="${WORKSPACE:-/workspace}"
 OUTPUT="${OUTPUT:-/output}"
+LOGS="${LOGS:-/logs}"
 SERVER_PORT="${SERVER_PORT:-8080}"
 
 log() { printf '[fhir-ig-ci] %s\n' "$*" >&2; }
@@ -31,13 +32,24 @@ if [ "$(id -u)" = "0" ]; then
         fi
         mkdir -p /home/ig/.fhir /home/ig/.cache
         chown -R "$target_uid:$target_gid" /home/ig
-        # Only touch /output if we actually own it; don't disturb an arbitrary host dir.
+        # Only touch /output and /logs if we actually own them; don't disturb arbitrary host dirs.
         if [ -d "$OUTPUT" ] && [ -w "$OUTPUT" ]; then
             chown "$target_uid:$target_gid" "$OUTPUT" 2>/dev/null || true
+        fi
+        if [ -d "$LOGS" ] && [ -w "$LOGS" ]; then
+            chown "$target_uid:$target_gid" "$LOGS" 2>/dev/null || true
         fi
         exec su-exec "$target_uid:$target_gid" "$0" "$@"
     fi
 fi
+
+setup_logging() {
+    mkdir -p "$LOGS" 2>/dev/null || true
+    [ -d "$LOGS" ] && [ -w "$LOGS" ] || return 0
+    local logfile="$LOGS/fhir-ig-ci-$(date +%Y%m%d-%H%M%S).log"
+    exec > >(tee -a "$logfile") 2>&1
+    log "Logging to $logfile"
+}
 
 run_sushi() {
     if [ -f "$WORKSPACE/sushi-config.yaml" ] || [ -d "$WORKSPACE/input/fsh" ]; then
@@ -115,6 +127,8 @@ print_versions() {
     java -jar "$IG_PUBLISHER_JAR" -v 2>&1 | head -n1 || true
 }
 
+setup_logging
+
 cmd="${1:-publish}"
 if [ "$#" -gt 0 ]; then shift; fi
 
@@ -169,6 +183,7 @@ Commands:
 Environment:
   WORKSPACE   Source mount (default /workspace)
   OUTPUT      Output mount (default /output)
+  LOGS        Log mount (default /logs); timestamped log files are written here
   SERVER_PORT HTTP port for serve/publish-and-serve (default 8080)
 EOF
         ;;

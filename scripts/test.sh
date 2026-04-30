@@ -155,6 +155,27 @@ tc_serve_exposes_port() {
     return "$rc"
 }
 
+tc_logs_written_to_mount() {
+    local logs
+    logs="$(mktemp -d)"
+    runc -v "$logs:/logs" "$IMAGE" versions >/dev/null || { rm -rf "$logs"; return 1; }
+    local logfile
+    logfile="$(ls "$logs"/fhir-ig-ci-*.log 2>/dev/null | head -n1)"
+    if [ -z "$logfile" ]; then
+        echo "no fhir-ig-ci-*.log found in $logs"
+        ls -la "$logs" || true
+        rm -rf "$logs"
+        return 1
+    fi
+    if ! grep -qi 'java\|sushi\|publisher\|logging' "$logfile"; then
+        echo "log file appears empty or missing expected content"
+        cat "$logfile"
+        rm -rf "$logs"
+        return 1
+    fi
+    rm -rf "$logs"
+}
+
 tc_arch_matches_host() {
     local host_arch img_arch
     host_arch="$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')"
@@ -176,6 +197,7 @@ run_case "sushi compiles sample IG"           tc_sushi_compiles_sample
 run_case "/output bind mount is writable"     tc_output_mount_writes_through
 run_case "sync-output copies to /output"      tc_sync_output_copies_workspace_output
 run_case "serve exposes HTTP on 8080"         tc_serve_exposes_port
+run_case "logs written to /logs mount"        tc_logs_written_to_mount
 run_case "image arch matches host"            tc_arch_matches_host
 
 echo
