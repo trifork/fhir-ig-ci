@@ -1,0 +1,41 @@
+fhir-ig-ci
+Copyright 2024 Trifork A/S
+
+Licensed under the Apache License, Version 2.0.
+
+-------------------------------------------------------------------------------
+
+This image bundles the following third-party components, each distributed
+under its own license:
+
+  HL7 FHIR IG Publisher
+    License: Apache-2.0
+    Source:  https://github.com/HL7/fhir-ig-publisher
+
+  fsh-sushi
+    License: Apache-2.0
+    Source:  https://github.com/FHIR/sushi
+
+  Jekyll
+    License: MIT
+    Source:  https://github.com/jekyll/jekyll
+
+  OpenJDK 21 (Eclipse Temurin / Alpine OpenJDK)
+    License: GPLv2 with Classpath Exception
+    Source:  https://openjdk.org
+
+  Alpine Linux base packages (various)
+    Licenses vary by package; see /etc/apk/world inside the container for
+    the package list and `apk info --license <pkg>` for individual licenses.
+
+  tini
+    License: MIT
+    Source:  https://github.com/krallin/tini
+
+  su-exec
+    License: MIT
+    Source:  https://github.com/ncopa/su-exec
+
+  graphviz
+    License: EPL-1.0
+    Source:  https://gitlab.com/graphviz/graphviz

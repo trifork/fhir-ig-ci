@@ -219,5 +219,7 @@ with `FSHOnly: true`. `scripts/test.sh` copies it into a tempdir and runs
 
 ## License
 
-[GNU Affero General Public License v3.0](LICENSE) — see [LICENSE](LICENSE)
-for the full text.
+[Apache License 2.0](LICENSE) — see [LICENSE](LICENSE) for the full text.
+
+Third-party components bundled in the image are listed in [NOTICE](NOTICE)
+with their respective licenses.
