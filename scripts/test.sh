@@ -192,6 +192,35 @@ tc_logs_written_to_mount() {
     rm -rf "$parent"
 }
 
+tc_plantuml_fontmanager() {
+    # PlantUML uses AWT font rendering which requires libfontmanager.so.
+    # Alpine's openjdk*-jre-headless omits it; openjdk*-jre adds it back.
+    # Verify the library is present AND that AWT font rendering actually works
+    # by running a single-file Java program (no javac needed, Java 11+ feature).
+    local out
+    out="$(runc "$IMAGE" bash -lc '
+        cat > /tmp/FontTest.java << '"'"'EOF'"'"'
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+public class FontTest {
+    public static void main(String[] args) {
+        System.setProperty("java.awt.headless", "true");
+        BufferedImage img = new BufferedImage(100, 50, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = img.createGraphics();
+        g.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        g.getFontMetrics().stringWidth("plantuml-test");
+        g.dispose();
+        System.out.println("OK");
+    }
+}
+EOF
+        java /tmp/FontTest.java 2>&1
+    ')"
+    echo "$out"
+    printf '%s\n' "$out" | grep -q '^OK$'
+}
+
 tc_arch_matches_host() {
     local host_arch img_arch
     host_arch="$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')"
@@ -214,6 +243,7 @@ run_case "/output bind mount is writable"     tc_output_mount_writes_through
 run_case "sync-output copies to /output"      tc_sync_output_copies_workspace_output
 run_case "serve exposes HTTP on 8080"         tc_serve_exposes_port
 run_case "logs written to /logs mount"        tc_logs_written_to_mount
+run_case "PlantUML AWT font rendering"        tc_plantuml_fontmanager
 run_case "image arch matches host"            tc_arch_matches_host
 
 echo

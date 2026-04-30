@@ -28,7 +28,7 @@ RUN apk add --no-cache \
         graphviz \
         nodejs \
         npm \
-        openjdk21-jre-headless \
+        openjdk21-jre \
         python3 \
         ruby \
         ruby-etc \
