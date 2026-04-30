@@ -156,28 +156,40 @@ tc_serve_exposes_port() {
 }
 
 tc_logs_written_to_mount() {
-    local logs
-    logs="$(mktemp -d)"
-    # The entrypoint chowns /logs to the container's ig user (uid 1000).
-    # Open permissions beforehand so the host can still read the directory
-    # after the chown, regardless of the CI runner's uid.
+    # Mount a *subdirectory* as /logs, not the mktemp dir itself.
+    # The entrypoint chowns /logs to the container's ig user; if we mount
+    # the mktemp dir directly, /tmp's sticky bit prevents the runner (a
+    # different uid) from removing it afterwards.  With a subdirectory the
+    # parent tmpdir stays owned by the runner and rm -rf works cleanly.
+    local parent logs logfile
+    parent="$(mktemp -d)"
+    logs="$parent/logs"
+    mkdir "$logs"
     chmod 777 "$logs"
-    runc -v "$logs:/logs" "$IMAGE" versions >/dev/null || { rm -rf "$logs"; return 1; }
-    local logfile
+
+    echo "  before: $(ls -ld "$logs")"
+    runc -v "$logs:/logs" "$IMAGE" versions >/dev/null || {
+        echo "  container exited non-zero; logs dir: $(ls -la "$logs" 2>&1 || true)"
+        rm -rf "$parent"
+        return 1
+    }
+    echo "  after:  $(ls -ld "$logs")"
+    ls -la "$logs"
+
     logfile="$(ls "$logs"/fhir-ig-ci-*.log 2>/dev/null | head -n1)"
     if [ -z "$logfile" ]; then
         echo "no fhir-ig-ci-*.log found in $logs"
-        ls -la "$logs" || true
-        rm -rf "$logs"
+        rm -rf "$parent"
         return 1
     fi
+    echo "  logfile: $logfile"
     if ! grep -qi 'java\|sushi\|publisher\|logging' "$logfile"; then
-        echo "log file appears empty or missing expected content"
+        echo "log file appears empty or missing expected content:"
         cat "$logfile"
-        rm -rf "$logs"
+        rm -rf "$parent"
         return 1
     fi
-    rm -rf "$logs"
+    rm -rf "$parent"
 }
 
 tc_arch_matches_host() {
