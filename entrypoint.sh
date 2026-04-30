@@ -53,7 +53,8 @@ setup_logging() {
     if [ "${LOGS_MAX_FILES:-0}" -gt 0 ] 2>/dev/null; then
         ls -t "$LOGS"/fhir-ig-ci-*.log 2>/dev/null \
             | tail -n +"$((LOGS_MAX_FILES + 1))" \
-            | xargs rm -f --
+            | xargs rm -f -- \
+            || true
     fi
     exec > >(tee -a "$logfile") 2>&1
     log "Logging to $logfile"
