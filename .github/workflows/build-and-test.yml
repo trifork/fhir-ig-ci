@@ -17,8 +17,29 @@ env:
   REGISTRY: ghcr.io/${{ github.repository_owner }}
 
 jobs:
+  lint:
+    name: Lint (shellcheck + hadolint)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+
+      - name: shellcheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: './scripts'
+          additional_files: 'entrypoint.sh'
+          severity: warning
+
   test:
     name: Build (host arch) and unit-test
+    needs: lint
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -45,7 +66,7 @@ jobs:
 
   publish:
     name: Build multi-arch and push
-    needs: test
+    needs: [lint, test]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:

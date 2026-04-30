@@ -4,8 +4,11 @@ FROM alpine:3.21
 ARG TARGETPLATFORM
 ARG TARGETARCH
 ARG IG_PUBLISHER_VERSION=2.2.7
+ARG IG_PUBLISHER_SHA256=94dff8e4b8faecda0bebbf93d3a14fdddc52020a0a7e8f5225807727b0281661
 ARG SUSHI_VERSION=3.19.0
 ARG JEKYLL_VERSION=4.3.4
+
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
@@ -16,9 +19,13 @@ ENV LANG=C.UTF-8 \
     IG_PUBLISHER_JAR=/opt/fhir/publisher.jar \
     WORKSPACE=/workspace \
     OUTPUT=/output \
-    SERVER_PORT=8080
+    LOGS=/logs \
+    SERVER_PORT=8080 \
+    JAVA_HEAP=4g \
+    LOGS_MAX_FILES=10
 
 # Runtime packages
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
         bash \
         ca-certificates \
@@ -41,6 +48,7 @@ RUN apk add --no-cache \
         unzip
 
 # Build toolchain needed only to compile native Ruby gems; removed afterwards.
+# hadolint ignore=DL3018,DL3028
 RUN set -eux; \
     apk add --no-cache --virtual .build-deps \
         build-base \
@@ -58,6 +66,7 @@ RUN set -eux; \
     mkdir -p /opt/fhir; \
     curl -fsSL -o "${IG_PUBLISHER_JAR}" \
         "https://github.com/HL7/fhir-ig-publisher/releases/download/${IG_PUBLISHER_VERSION}/publisher.jar"; \
+    echo "${IG_PUBLISHER_SHA256}  ${IG_PUBLISHER_JAR}" | sha256sum -c -; \
     apk del .build-deps; \
     rm -rf /root/.gem /root/.npm /tmp/* /var/cache/apk/*
 
@@ -74,6 +83,9 @@ COPY --chmod=0755 entrypoint.sh /usr/local/bin/entrypoint.sh
 WORKDIR /workspace
 VOLUME ["/workspace", "/output"]
 EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fsS "http://localhost:${SERVER_PORT}/" > /dev/null || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
 CMD ["publish"]

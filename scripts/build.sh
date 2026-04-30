@@ -80,6 +80,7 @@ case "$ENGINE" in
         cache_args=()
         [ -n "${CACHE_FROM:-}" ] && cache_args+=("--cache-from=$CACHE_FROM")
         [ -n "${CACHE_TO:-}" ]   && cache_args+=("--cache-to=$CACHE_TO")
+        [ "$mode" = "push" ]     && out_args+=(--sbom=true --provenance=mode=max)
 
         docker buildx build \
             --platform "$platforms" \

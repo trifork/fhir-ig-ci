@@ -1,0 +1,5 @@
+# Version-pinning for apk and gem is impractical in a maintenance context;
+# the Alpine base image is already pinned and dependabot covers base-image bumps.
+ignore:
+  - DL3018
+  - DL3028

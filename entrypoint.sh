@@ -5,6 +5,8 @@ WORKSPACE="${WORKSPACE:-/workspace}"
 OUTPUT="${OUTPUT:-/output}"
 LOGS="${LOGS:-/logs}"
 SERVER_PORT="${SERVER_PORT:-8080}"
+JAVA_HEAP="${JAVA_HEAP:-4g}"
+LOGS_MAX_FILES="${LOGS_MAX_FILES:-10}"
 
 log() { printf '[fhir-ig-ci] %s\n' "$*" >&2; }
 
@@ -46,7 +48,13 @@ fi
 setup_logging() {
     mkdir -p "$LOGS" 2>/dev/null || true
     [ -d "$LOGS" ] && [ -w "$LOGS" ] || return 0
-    local logfile="$LOGS/fhir-ig-ci-$(date +%Y%m%d-%H%M%S).log"
+    local logfile
+    logfile="$LOGS/fhir-ig-ci-$(date +%Y%m%d-%H%M%S).log"
+    if [ "${LOGS_MAX_FILES:-0}" -gt 0 ] 2>/dev/null; then
+        ls -t "$LOGS"/fhir-ig-ci-*.log 2>/dev/null \
+            | tail -n +"$((LOGS_MAX_FILES + 1))" \
+            | xargs rm -f --
+    fi
     exec > >(tee -a "$logfile") 2>&1
     log "Logging to $logfile"
 }
@@ -86,7 +94,7 @@ run_publisher() {
     cp -a "$WORKSPACE/." "$stage/"
     rm -rf "$stage/output"
     local rc=0
-    (cd "$stage" && java -Xmx4g -jar "$IG_PUBLISHER_JAR" -ig . "$@") || rc=$?
+    (cd "$stage" && java -Xmx"${JAVA_HEAP}" -jar "$IG_PUBLISHER_JAR" -ig . "$@") || rc=$?
     if [ -d "$stage/output" ]; then
         rm -rf "$WORKSPACE/output"
         mkdir -p "$WORKSPACE/output"
@@ -181,10 +189,13 @@ Commands:
   <anything else>      Executed verbatim inside the container.
 
 Environment:
-  WORKSPACE   Source mount (default /workspace)
-  OUTPUT      Output mount (default /output)
-  LOGS        Log mount (default /logs); timestamped log files are written here
-  SERVER_PORT HTTP port for serve/publish-and-serve (default 8080)
+  WORKSPACE       Source mount (default /workspace)
+  OUTPUT          Output mount (default /output)
+  LOGS            Log mount (default /logs); timestamped log files are written here
+  LOGS_MAX_FILES  Max log files to keep in LOGS (default 10, 0 = unlimited)
+  SERVER_PORT     HTTP port for serve/publish-and-serve (default 8080)
+  JAVA_HEAP       JVM max heap for the IG Publisher (default 4g)
+  PUID/PGID       Force container uid/gid (auto-detected from /workspace owner if unset)
 EOF
         ;;
     *)

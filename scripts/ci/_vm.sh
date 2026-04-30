@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 # Shared multipass VM helpers. Source this file — do not execute directly.
 #
 # Provides:

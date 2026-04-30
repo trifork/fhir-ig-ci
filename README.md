@@ -101,11 +101,13 @@ docker run --rm ghcr.io/trifork/fhir-ig-ci:latest versions
 | `/logs`      | Timestamped log files written here (optional)  |
 | `8080/tcp`   | HTTP port used by `serve` / `publish-and-serve`|
 
-| Env var       | Default | Purpose                                            |
-| ------------- | :-----: | -------------------------------------------------- |
-| `SERVER_PORT` | `8080`  | Listener port for the built-in HTTP server         |
-| `LOGS`        | `/logs` | Directory where timestamped log files are written  |
-| `PUID`/`PGID` |    —    | Force the container user's uid/gid. If unset, the entrypoint adopts the owner of `/workspace`. |
+| Env var          | Default | Purpose                                            |
+| ---------------- | :-----: | -------------------------------------------------- |
+| `SERVER_PORT`    | `8080`  | Listener port for the built-in HTTP server         |
+| `LOGS`           | `/logs` | Directory where timestamped log files are written  |
+| `LOGS_MAX_FILES` |  `10`   | Max log files to keep; oldest are pruned (0 = unlimited) |
+| `JAVA_HEAP`      |  `4g`   | JVM max heap passed as `-Xmx` to the IG Publisher  |
+| `PUID`/`PGID`    |    —    | Force the container user's uid/gid. If unset, the entrypoint adopts the owner of `/workspace`. |
 
 The entrypoint starts as root, remaps the built-in `ig` user so its uid/gid
 matches either `$PUID`/`$PGID` or the owner of the mounted workspace, and then
