@@ -143,11 +143,9 @@ if [ "$#" -gt 0 ]; then shift; fi
 
 case "$cmd" in
     publish|build)
-        run_sushi
         run_publisher "$@"
         ;;
     publish-and-serve)
-        run_sushi
         run_publisher "$@"
         serve_output
         ;;
