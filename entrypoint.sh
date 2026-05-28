@@ -97,7 +97,18 @@ run_publisher() {
     local rc=0
     (cd "$stage" && java -Xmx"${JAVA_HEAP}" -jar "$IG_PUBLISHER_JAR" -ig . "$@") || rc=$?
     if [ -d "$stage/output" ]; then
-        rm -rf "$WORKSPACE/output"
+        # Bind-mount filesystems (Docker Desktop virtiofs/osxfs, podman 9p) can
+        # report a transient ENOTEMPTY here when stale directory entries haven't
+        # propagated across the mount boundary. Retry briefly before giving up.
+        local attempt=0
+        until rm -rf "$WORKSPACE/output"; do
+            attempt=$((attempt + 1))
+            if [ "$attempt" -ge 5 ]; then
+                log "Failed to clear $WORKSPACE/output after $attempt attempts"
+                return 1
+            fi
+            sleep 1
+        done
         mkdir -p "$WORKSPACE/output"
         cp -a "$stage/output/." "$WORKSPACE/output/"
     fi
