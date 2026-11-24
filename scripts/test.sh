@@ -47,9 +47,29 @@ tc_versions() {
 
 tc_java_17_plus() {
     local out
-    out="$(runc "$IMAGE" bash -c 'java -version 2>&1 | head -n1')"
+    out="$(runc "$IMAGE" bash -c "java -version 2>&1 | grep -m1 ' version '")"
     echo "$out"
     echo "$out" | grep -Eq '"(1[7-9]|2[0-9])\.' || return 1
+}
+
+# CVE-2026-114938 (Java4Shell): the JDK must be 21.0.13.1 or later.
+tc_jdk_patched() {
+    local min="21.0.13.1" ver
+    ver="$(runc "$IMAGE" bash -c 'java -XshowSettings:properties -version 2>&1' \
+        | sed -n 's/^ *java\.version = //p')"
+    echo "java.version=$ver (min $min)"
+    [ -n "$ver" ] || return 1
+    [ "$(printf '%s\n%s\n' "$min" "$ver" | sort -V | head -n1)" = "$min" ]
+}
+
+# Defense in depth for CVE-2026-114938: Base64 intrinsic must be off for
+# every java invocation via JDK_JAVA_OPTIONS.
+tc_base64_intrinsic_disabled() {
+    local out
+    out="$(runc "$IMAGE" bash -c 'java -XX:+PrintFlagsFinal -version 2>/dev/null' \
+        | grep -w UseBASE64Intrinsics)"
+    echo "$out"
+    echo "$out" | grep -Eq 'UseBASE64Intrinsics +=  *false'
 }
 
 tc_sushi_runs() {
@@ -233,6 +253,8 @@ tc_arch_matches_host() {
 
 run_case "versions print"                     tc_versions
 run_case "java >= 17"                         tc_java_17_plus
+run_case "JDK patched for CVE-2026-114938"    tc_jdk_patched
+run_case "Base64 intrinsic disabled"          tc_base64_intrinsic_disabled
 run_case "sushi --help"                       tc_sushi_runs
 run_case "jekyll --version"                   tc_jekyll_runs
 run_case "python3 http.server importable"     tc_python_runs
