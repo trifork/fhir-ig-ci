@@ -8,9 +8,13 @@ Only the latest release receives security fixes.
 
 Please **do not** open a public GitHub issue for security vulnerabilities.
 
-Report them by email to **cdj@trifork.com** with the subject line
-`[fhir-ig-ci] Security vulnerability`. Include a description of the issue,
-steps to reproduce, and (if known) suggested mitigations.
+Report them privately via GitHub's
+[private vulnerability reporting](https://github.com/trifork/fhir-ig-ci/security/advisories/new)
+(*Security* tab → *Report a vulnerability*). This opens a draft security
+advisory (GHSA) visible only to you and the maintainers. Include a
+description of the issue, steps to reproduce, and (if known) suggested
+mitigations.
 
 You will receive an acknowledgement within 5 business days and a resolution
-plan within 14 business days.
+plan within 14 business days. Fixes are coordinated in the advisory and
+published together with a new release.
