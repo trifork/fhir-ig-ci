@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM alpine:3.21
+FROM alpine:3.23
 
 ARG TARGETPLATFORM
 ARG TARGETARCH
@@ -7,6 +7,8 @@ ARG IG_PUBLISHER_VERSION=3.0.0
 ARG IG_PUBLISHER_SHA256=b8403abe5a438ddb9a3a07e02ad925f2c4bbbd9e903c49ecff50fcb481ec64ad
 ARG SUSHI_VERSION=3.20.1
 ARG JEKYLL_VERSION=4.4.1
+# Minimum OpenJDK build; older ones are affected by CVE-2026-114938 (Java4Shell).
+ARG JDK_MIN_VERSION=21.0.13.1
 
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
@@ -22,6 +24,7 @@ ENV LANG=C.UTF-8 \
     LOGS=/logs \
     SERVER_PORT=8080 \
     JAVA_HEAP=4g \
+    JDK_JAVA_OPTIONS=-XX:-UseBASE64Intrinsics \
     LOGS_MAX_FILES=10
 
 # Runtime packages
@@ -38,14 +41,19 @@ RUN apk add --no-cache \
         openjdk21-jre \
         python3 \
         ruby \
-        ruby-etc \
         ruby-bundler \
         shadow \
         su-exec \
         tini \
         ttf-dejavu \
         tzdata \
-        unzip
+        unzip; \
+    jdk_version="$(java -XshowSettings:properties -version 2>&1 \
+        | sed -n 's/^ *java\.version = //p')"; \
+    if [ "$(printf '%s\n%s\n' "${JDK_MIN_VERSION}" "${jdk_version}" | sort -V | head -n1)" != "${JDK_MIN_VERSION}" ]; then \
+        echo "OpenJDK ${jdk_version} is older than required ${JDK_MIN_VERSION}" >&2; \
+        exit 1; \
+    fi
 
 # Build toolchain needed only to compile native Ruby gems; removed afterwards.
 # hadolint ignore=DL3018,DL3028

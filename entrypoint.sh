@@ -135,7 +135,7 @@ serve_output() {
 
 print_versions() {
     echo "alpine:    $(cat /etc/alpine-release)"
-    echo "java:      $(java -version 2>&1 | head -n1)"
+    echo "java:      $(java -version 2>&1 | grep -m1 ' version ')"
     echo "node:      $(node --version)"
     echo "npm:       $(npm --version)"
     echo "sushi:     $(sushi --version 2>&1 | tail -n1)"
@@ -144,7 +144,7 @@ print_versions() {
     echo "python:    $(python3 --version)"
     echo "graphviz:  $(dot -V 2>&1)"
     printf 'publisher: '
-    java -jar "$IG_PUBLISHER_JAR" -v 2>&1 | head -n1 || true
+    java -jar "$IG_PUBLISHER_JAR" -v 2>&1 | grep -v '^NOTE: Picked up' | head -n1 || true
 }
 
 setup_logging
