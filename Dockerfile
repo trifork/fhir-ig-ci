@@ -93,7 +93,7 @@ VOLUME ["/workspace", "/output"]
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -fsS "http://localhost:${SERVER_PORT}/" > /dev/null || exit 1
+    CMD ["/bin/sh", "-c", "curl -fsS \"http://localhost:${SERVER_PORT}/\" > /dev/null || exit 1"]
 
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
 CMD ["publish"]
